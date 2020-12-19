@@ -34,13 +34,13 @@ type Stream struct {
 
 // StreamSpec is the spec for a Stream resource
 type StreamSpec struct {
-	DeploymentName string `json:"deploymentName"`
-	Replicas       *int32 `json:"replicas"`
+	StreamName  string `json:"streamName"`
+	StreamCount *int32 `json:"streamCount"`
 }
 
 // StreamStatus is the status for a Stream resource
 type StreamStatus struct {
-	AvailableReplicas int32 `json:"availableReplicas"`
+	AvailableStreams int32 `json:"availableStreams"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
