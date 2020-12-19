@@ -35,12 +35,34 @@ type Stream struct {
 // StreamSpec is the spec for a Stream resource
 type StreamSpec struct {
 	StreamName  string `json:"streamName"`
-	StreamCount *int32 `json:"streamCount"`
+	ShardCount *int32 `json:"shardCount"`
+	Tags []struct {
+		Key string `json:"tagKey"`
+		Value string `json:"tagValue"`
+	} `json:"tags"`
 }
 
 // StreamStatus is the status for a Stream resource
 type StreamStatus struct {
-	AvailableStreams int32 `json:"availableStreams"`
+	RetentionPeriodHours int32 `json:"retentionPeriodHours"`
+	Shards []struct {
+		HashKeyRange struct {
+			StartingHashKey string `json:"startingHashKey"`
+			EndingHashKey string `json:"endingHashKey"`
+		} `json:"hashKeyRange"`
+		SequenceNumberRange struct {
+			StartingSequenceNumber string `json:"startingSequenceNumber`
+			EndingSequenceNumber string `json:"endingSequenceNumber"`
+		} `json:"sequenceNumberRange"`
+		ShardId string `json:"shardId"`
+		AdjacentParentShardId string `json:"adjacentParentShardId"`
+		ParentShardId string `json:"parentShardId"`
+	} `json:"shards"`
+	StreamARN string `json:"streamARN"`
+	StreamName string `json:"streamName"`
+	StreamStatus string `json:"streamStatus"`
+	EncryptionType string `json:"encryptionType"`
+	KeyId string `json:"keyId"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
