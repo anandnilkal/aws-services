@@ -11,6 +11,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+
+	awsservicesv1alpha1 "github.com/anandnilkal/aws-services/pkg/apis/awsservices/v1alpha1"
+	clientset "github.com/anandnilkal/aws-services/pkg/generated/clientset/versioned"
+	// awsservicesscheme "github.com/anandnilkal/aws-services/pkg/generated/clientset/versioned/scheme"
+	informers "github.com/anandnilkal/aws-services/pkg/generated/informers/externalversions/awsservices/v1alpha1"
+	// listers "github.com/anandnilkal/aws-services/pkg/generated/listers/awsservices/v1alpha1"
 )
 
 type operationType string
@@ -40,6 +46,8 @@ type controllerType struct {
 	AddFunc    func(string, string)
 	DeleteFunc func(string, string)
 	UpdateFunc func(string, string)
+	Informer   informers.StreamInformer
+	ClientSet  clientset.Interface
 }
 
 func (c *controllerType) operation(in string) (string, string) {
@@ -208,18 +216,36 @@ func (c *controllerType) Run(threads int, stopCh <-chan struct{}) error {
 	return nil
 }
 
-func NewControllerFactory(id string, addFunc, deleteFunc, updateFunc func(string, string)) Factory {
-	return NewControllerFactoryDefault(id, addFunc, deleteFunc, updateFunc)
+func NewControllerFactory(id string, addFunc, deleteFunc, updateFunc func(string, string),
+	resourceInformer informers.StreamInformer, resourceClientSet clientset.Interface) Factory {
+	return NewControllerFactoryDefault(id, addFunc, deleteFunc, updateFunc, resourceInformer, resourceClientSet)
 }
 
-func NewControllerFactoryDefault(id string, addFunc, deleteFunc, updateFunc func(string, string)) Factory {
+func NewControllerFactoryDefault(id string, addFunc, deleteFunc, updateFunc func(string, string), resourceInformer informers.StreamInformer, resourceClientSet clientset.Interface) Factory {
 	controller := &controllerType{
 		ID:         id,
 		WorkQueue:  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), id),
 		AddFunc:    addFunc,
 		DeleteFunc: deleteFunc,
 		UpdateFunc: updateFunc,
+		Informer: resourceInformer,
+		ClientSet: resourceClientSet,
 	}
+
+	controller.Informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.enqueueAdd,
+		UpdateFunc: func(old, new interface{}) {
+				newStream := new.(*awsservicesv1alpha1.Stream)
+				oldStream := old.(*awsservicesv1alpha1.Stream)
+				if newStream.ResourceVersion == oldStream.ResourceVersion {
+						// Periodic resync will send update events for all known Deployments.
+						// Two different versions of the same Deployment will always have different RVs.
+						return
+				}
+				controller.enqueueUpdate(new)
+		},
+		DeleteFunc: controller.enqueueDelete,
+	})
 
 	return controller
 }
