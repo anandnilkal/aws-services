@@ -5,8 +5,8 @@ import (
 )
 
 type stream struct {
-	StreamName string `json:"stream_name"`
-	StreamCount string `json:"stream_count"`
+	StreamName string `json:"streamName"`
+	ShardCount string `json:"shardCount"`
 }
 
 type StreamHandler struct {

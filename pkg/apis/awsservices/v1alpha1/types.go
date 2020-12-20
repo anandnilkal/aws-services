@@ -32,37 +32,49 @@ type Stream struct {
 	Status StreamStatus `json:"status"`
 }
 
+// Tag associated with streams
+type Tag struct {
+	Key   string `json:"tagKey"`
+	Value string `json:"tagValue"`
+}
+
 // StreamSpec is the spec for a Stream resource
 type StreamSpec struct {
-	StreamName  string `json:"streamName"`
+	StreamName string `json:"streamName"`
 	ShardCount *int32 `json:"shardCount"`
-	Tags []struct {
-		Key string `json:"tagKey"`
-		Value string `json:"tagValue"`
-	} `json:"tags"`
+	Tags       []Tag  `json:"tags"`
+}
+
+// HashKeyRange range of hash keys supported by shard
+type HashKeyRange struct {
+	StartingHashKey string `json:"startingHashKey"`
+	EndingHashKey   string `json:"endingHashKey"`
+}
+
+// SequenceNumberRange used by a shard
+type SequenceNumberRange struct {
+	StartingSequenceNumber string `json:"startingSequenceNumber"`
+	EndingSequenceNumber   string `json:"endingSequenceNumber"`
+}
+
+// Shard information of a stream
+type Shard struct {
+	HashKeyRange          HashKeyRange        `json:"hashKeyRange"`
+	SequenceNumberRange   SequenceNumberRange `json:"sequenceNumberRange"`
+	ShardID               string              `json:"shardId"`
+	AdjacentParentShardID string              `json:"adjacentParentShardId"`
+	ParentShardID         string              `json:"parentShardId"`
 }
 
 // StreamStatus is the status for a Stream resource
 type StreamStatus struct {
-	RetentionPeriodHours int32 `json:"retentionPeriodHours"`
-	Shards []struct {
-		HashKeyRange struct {
-			StartingHashKey string `json:"startingHashKey"`
-			EndingHashKey string `json:"endingHashKey"`
-		} `json:"hashKeyRange"`
-		SequenceNumberRange struct {
-			StartingSequenceNumber string `json:"startingSequenceNumber`
-			EndingSequenceNumber string `json:"endingSequenceNumber"`
-		} `json:"sequenceNumberRange"`
-		ShardId string `json:"shardId"`
-		AdjacentParentShardId string `json:"adjacentParentShardId"`
-		ParentShardId string `json:"parentShardId"`
-	} `json:"shards"`
-	StreamARN string `json:"streamARN"`
-	StreamName string `json:"streamName"`
-	StreamStatus string `json:"streamStatus"`
-	EncryptionType string `json:"encryptionType"`
-	KeyId string `json:"keyId"`
+	RetentionPeriodHours int32   `json:"retentionPeriodHours"`
+	Shards               []Shard `json:"shards"`
+	StreamARN            string  `json:"streamARN"`
+	StreamName           string  `json:"streamName"`
+	StreamStatus         string  `json:"streamStatus"`
+	EncryptionType       string  `json:"encryptionType"`
+	KeyID                string  `json:"keyId"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

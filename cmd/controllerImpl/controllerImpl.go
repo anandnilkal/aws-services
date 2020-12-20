@@ -7,13 +7,10 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-
+	"github.com/anandnilkal/aws-services/cmd/resource"
 	clientset "github.com/anandnilkal/aws-services/pkg/generated/clientset/versioned"
 	informers "github.com/anandnilkal/aws-services/pkg/generated/informers/externalversions"
 	"github.com/anandnilkal/aws-services/pkg/signals"
-	"github.com/anandnilkal/aws-services/cmd/resource"
 )
 
 func CreateController(cfg *restclient.Config) {

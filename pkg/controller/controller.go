@@ -14,6 +14,7 @@ import (
 
 	awsservicesv1alpha1 "github.com/anandnilkal/aws-services/pkg/apis/awsservices/v1alpha1"
 	clientset "github.com/anandnilkal/aws-services/pkg/generated/clientset/versioned"
+
 	// awsservicesscheme "github.com/anandnilkal/aws-services/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/anandnilkal/aws-services/pkg/generated/informers/externalversions/awsservices/v1alpha1"
 	// listers "github.com/anandnilkal/aws-services/pkg/generated/listers/awsservices/v1alpha1"
@@ -216,11 +217,13 @@ func (c *controllerType) Run(threads int, stopCh <-chan struct{}) error {
 	return nil
 }
 
+// NewControllerFactory provides default controller instance
 func NewControllerFactory(id string, addFunc, deleteFunc, updateFunc func(string, string),
 	resourceInformer informers.StreamInformer, resourceClientSet clientset.Interface) Factory {
 	return NewControllerFactoryDefault(id, addFunc, deleteFunc, updateFunc, resourceInformer, resourceClientSet)
 }
 
+// NewControllerFactoryDefault default implmentation of controller instance
 func NewControllerFactoryDefault(id string, addFunc, deleteFunc, updateFunc func(string, string), resourceInformer informers.StreamInformer, resourceClientSet clientset.Interface) Factory {
 	controller := &controllerType{
 		ID:         id,
@@ -228,21 +231,21 @@ func NewControllerFactoryDefault(id string, addFunc, deleteFunc, updateFunc func
 		AddFunc:    addFunc,
 		DeleteFunc: deleteFunc,
 		UpdateFunc: updateFunc,
-		Informer: resourceInformer,
-		ClientSet: resourceClientSet,
+		Informer:   resourceInformer,
+		ClientSet:  resourceClientSet,
 	}
 
 	controller.Informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueAdd,
 		UpdateFunc: func(old, new interface{}) {
-				newStream := new.(*awsservicesv1alpha1.Stream)
-				oldStream := old.(*awsservicesv1alpha1.Stream)
-				if newStream.ResourceVersion == oldStream.ResourceVersion {
-						// Periodic resync will send update events for all known Deployments.
-						// Two different versions of the same Deployment will always have different RVs.
-						return
-				}
-				controller.enqueueUpdate(new)
+			newStream := new.(*awsservicesv1alpha1.Stream)
+			oldStream := old.(*awsservicesv1alpha1.Stream)
+			if newStream.ResourceVersion == oldStream.ResourceVersion {
+				// Periodic resync will send update events for all known Streams.
+				// Two different versions of the same Stream will always have different RVs.
+				return
+			}
+			controller.enqueueUpdate(new)
 		},
 		DeleteFunc: controller.enqueueDelete,
 	})
