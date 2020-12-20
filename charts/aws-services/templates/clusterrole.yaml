@@ -1,0 +1,17 @@
+{{- if .Values.aws_services_stream.enabled }}
+{{- if .Values.aws_services_stream.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aws-services.fullname" . }}-clusterrole
+  labels:
+    app.kubernetes.io/name: {{ include "aws-services.name" . }}
+    helm.sh/chart: {{ include "aws-services.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+rules:
+  {{- with .Values.aws_services_stream.rbac.rules }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{ end }}
+{{ end }}
