@@ -19,9 +19,9 @@ package main
 import (
 	"flag"
 
+	"github.com/anandnilkal/aws-services/cmd/controllerImpl"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
-	"github.com/anandnilkal/aws-services/cmd/controllerImpl"
 )
 
 var (
@@ -33,9 +33,9 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-    if err != nil {
-        klog.Fatalf("Error building kubeconfig: %s", err.Error())
-    }
+	if err != nil {
+		klog.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
 	controllerImpl.CreateController(cfg)
 
 }

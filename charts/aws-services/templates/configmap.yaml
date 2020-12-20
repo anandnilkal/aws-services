@@ -1,0 +1,17 @@
+{{- if .Values.configmap.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aws-services.name" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "aws-services.name" . }}
+    helm.sh/chart: {{ include "aws-services.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-6"
+    "helm.sh/hook-delete-policy": before-hook-creation
+data:
+{{ (tpl (.Files.Glob "config.yaml").AsConfig . ) | printf "%s" | indent 2 }}
+{{- end -}}

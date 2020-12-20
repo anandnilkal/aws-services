@@ -1,0 +1,21 @@
+{{- if .Values.aws_services_stream.enabled }}
+{{- if .Values.aws_services_stream.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aws-services.fullname" . }}-clusterrolebinding
+  labels:
+    app.kubernetes.io/name: {{ include "aws-services.name" . }}
+    helm.sh/chart: {{ include "aws-services.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aws-services.fullname" . }}-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: {{ include "aws-services.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{ end }}
+{{ end }}
