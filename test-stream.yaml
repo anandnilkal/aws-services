@@ -6,3 +6,8 @@ metadata:
 spec:
   streamName: anilkal-test-stream-1
   shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal
+  - tagKey: namespace
+    tagValue: cloud-ops1

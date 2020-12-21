@@ -14,7 +14,7 @@ import (
 	"github.com/anandnilkal/aws-services/pkg/signals"
 )
 
-func CreateController(cfg *restclient.Config) {
+func CreateController(cfg *restclient.Config, region string) {
 
 	stopCh := signals.SetupSignalHandler()
 	awsServicesStreamClient, err := clientset.NewForConfig(cfg)
@@ -23,7 +23,7 @@ func CreateController(cfg *restclient.Config) {
 	}
 
 	awsServicesStreamInformerFactory := informers.NewSharedInformerFactory(awsServicesStreamClient, time.Second*30)
-	resourceHandler := resource.NewStreamHandler(awsServicesStreamInformerFactory.Awsservices().V1alpha1().Streams(), *awsServicesStreamClient)
+	resourceHandler := resource.NewStreamHandler(awsServicesStreamInformerFactory.Awsservices().V1alpha1().Streams(), *awsServicesStreamClient, region)
 	ctrl := controller.NewControllerFactory("Stream", resourceHandler.AddFunc, resourceHandler.DeleteFunc, resourceHandler.UpdateFunc, awsServicesStreamInformerFactory.Awsservices().V1alpha1().Streams(), awsServicesStreamClient)
 	awsServicesStreamInformerFactory.Start(stopCh)
 	if err := ctrl.Run(1, stopCh); err != nil {
