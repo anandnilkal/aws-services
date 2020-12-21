@@ -11,6 +11,7 @@ import (
 	clientset "github.com/anandnilkal/aws-services/pkg/generated/clientset/versioned"
 	informers "github.com/anandnilkal/aws-services/pkg/generated/informers/externalversions/awsservices/v1alpha1"
 	listers "github.com/anandnilkal/aws-services/pkg/generated/listers/awsservices/v1alpha1"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 
 	"k8s.io/klog/v2"
 )
@@ -41,51 +42,27 @@ func (s *StreamHandler) AddFunc(name, namespace string) {
 			return
 		}
 	}
+	tags := s.getTags(stream.Spec.Tags)
+	if len(tags) > 0 {
+		_, err = kStream.TagStream(tags)
+		if err != nil {
+			klog.Errorf(err.Error())
+			return
+		}
+	}
 	s.StreamList[name] = kStream
 	streamCopy := stream.DeepCopy()
 	streamDescription, err := kStream.DescribeStream()
-	streamCopy.Status = streamResource.StreamStatus{
-		RetentionPeriodHours: *streamDescription.StreamDescription.RetentionPeriodHours,
-		StreamARN:            *streamDescription.StreamDescription.StreamARN,
-		StreamStatus:         string(streamDescription.StreamDescription.StreamStatus),
-		StreamName:           *streamDescription.StreamDescription.StreamName,
+	if err != nil {
+		klog.Errorf(err.Error())
+		return
 	}
-	if streamDescription.StreamDescription.KeyId != nil {
-		streamCopy.Status.KeyID = *streamDescription.StreamDescription.KeyId
-		streamCopy.Status.EncryptionType = string(streamDescription.StreamDescription.EncryptionType)
+	streamStatus, err := s.getStreamStatus(streamDescription)
+	if err != nil {
+		klog.Errorf(err.Error())
+		return
 	}
-
-	shards := make([]streamResource.Shard, 0)
-	for _, shard := range streamDescription.StreamDescription.Shards {
-		shardInfo := streamResource.Shard{}
-		if shard.ShardId != nil {
-			shardInfo.ShardID = *shard.ShardId
-		}
-		if shard.AdjacentParentShardId != nil {
-			shardInfo.AdjacentParentShardID = *shard.AdjacentParentShardId
-		}
-		if shard.ParentShardId != nil {
-			shardInfo.ParentShardID = *shard.ParentShardId
-		}
-		if shard.HashKeyRange != nil {
-			if shard.HashKeyRange.StartingHashKey != nil {
-				shardInfo.HashKeyRange.StartingHashKey = *shard.HashKeyRange.StartingHashKey
-			}
-			if shard.HashKeyRange.EndingHashKey != nil {
-				shardInfo.HashKeyRange.EndingHashKey = *shard.HashKeyRange.EndingHashKey
-			}
-		}
-		if shard.SequenceNumberRange != nil {
-			if shard.SequenceNumberRange.StartingSequenceNumber != nil {
-				shardInfo.SequenceNumberRange.StartingSequenceNumber = *shard.SequenceNumberRange.StartingSequenceNumber
-			}
-			if shard.SequenceNumberRange.EndingSequenceNumber != nil {
-				shardInfo.SequenceNumberRange.EndingSequenceNumber = *shard.SequenceNumberRange.EndingSequenceNumber
-			}
-		}
-		shards = append(shards, shardInfo)
-	}
-	streamCopy.Status.Shards = shards
+	streamCopy.Status = *streamStatus
 
 	_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
 	if err != nil {
@@ -141,49 +118,24 @@ func (s *StreamHandler) UpdateFunc(name, namespace string) {
 		}
 		streamCopy := stream.DeepCopy()
 		streamDescription, err := existingStream.DescribeStream()
-		streamCopy.Status = streamResource.StreamStatus{
-			RetentionPeriodHours: *streamDescription.StreamDescription.RetentionPeriodHours,
-			StreamARN:            *streamDescription.StreamDescription.StreamARN,
-			StreamStatus:         string(streamDescription.StreamDescription.StreamStatus),
-			StreamName:           *streamDescription.StreamDescription.StreamName,
+		if err != nil {
+			klog.Errorf(err.Error())
+			return
 		}
-		if streamDescription.StreamDescription.KeyId != nil {
-			streamCopy.Status.KeyID = *streamDescription.StreamDescription.KeyId
-			streamCopy.Status.EncryptionType = string(streamDescription.StreamDescription.EncryptionType)
+		tags := s.getTags(stream.Spec.Tags)
+		if len(tags) > 0 {
+			_, err = existingStream.TagStream(tags)
+			if err != nil {
+				klog.Errorf(err.Error())
+				return
+			}
 		}
-
-		shards := make([]streamResource.Shard, 0)
-		for _, shard := range streamDescription.StreamDescription.Shards {
-			shardInfo := streamResource.Shard{}
-			if shard.ShardId != nil {
-				shardInfo.ShardID = *shard.ShardId
-			}
-			if shard.AdjacentParentShardId != nil {
-				shardInfo.AdjacentParentShardID = *shard.AdjacentParentShardId
-			}
-			if shard.ParentShardId != nil {
-				shardInfo.ParentShardID = *shard.ParentShardId
-			}
-			if shard.HashKeyRange != nil {
-				if shard.HashKeyRange.StartingHashKey != nil {
-					shardInfo.HashKeyRange.StartingHashKey = *shard.HashKeyRange.StartingHashKey
-				}
-				if shard.HashKeyRange.EndingHashKey != nil {
-					shardInfo.HashKeyRange.EndingHashKey = *shard.HashKeyRange.EndingHashKey
-				}
-			}
-			if shard.SequenceNumberRange != nil {
-				if shard.SequenceNumberRange.StartingSequenceNumber != nil {
-					shardInfo.SequenceNumberRange.StartingSequenceNumber = *shard.SequenceNumberRange.StartingSequenceNumber
-				}
-				if shard.SequenceNumberRange.EndingSequenceNumber != nil {
-					shardInfo.SequenceNumberRange.EndingSequenceNumber = *shard.SequenceNumberRange.EndingSequenceNumber
-				}
-			}
-			shards = append(shards, shardInfo)
+		streamStatus, err := s.getStreamStatus(streamDescription)
+		if err != nil {
+			klog.Errorf(err.Error())
+			return
 		}
-		streamCopy.Status.Shards = shards
-
+		streamCopy.Status = *streamStatus
 		_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf(err.Error())
@@ -192,8 +144,62 @@ func (s *StreamHandler) UpdateFunc(name, namespace string) {
 	return
 }
 
-func NewStreamHandler(informer informers.StreamInformer, clientSet clientset.Clientset) *StreamHandler {
-	client := kinesisStream.NewStreamClient("us-west-2")
+func (s *StreamHandler) getStreamStatus(description *kinesis.DescribeStreamOutput) (*streamResource.StreamStatus, error) {
+	status := streamResource.StreamStatus{
+		RetentionPeriodHours: *description.StreamDescription.RetentionPeriodHours,
+		StreamARN:            *description.StreamDescription.StreamARN,
+		StreamStatus:         string(description.StreamDescription.StreamStatus),
+		StreamName:           *description.StreamDescription.StreamName,
+	}
+	if description.StreamDescription.KeyId != nil {
+		status.KeyID = *description.StreamDescription.KeyId
+		status.EncryptionType = string(description.StreamDescription.EncryptionType)
+	}
+
+	status.Shards = make([]streamResource.Shard, 0)
+	for _, shard := range description.StreamDescription.Shards {
+		shardInfo := streamResource.Shard{}
+		if shard.ShardId != nil {
+			shardInfo.ShardID = *shard.ShardId
+		}
+		if shard.AdjacentParentShardId != nil {
+			shardInfo.AdjacentParentShardID = *shard.AdjacentParentShardId
+		}
+		if shard.ParentShardId != nil {
+			shardInfo.ParentShardID = *shard.ParentShardId
+		}
+		if shard.HashKeyRange != nil {
+			if shard.HashKeyRange.StartingHashKey != nil {
+				shardInfo.HashKeyRange.StartingHashKey = *shard.HashKeyRange.StartingHashKey
+			}
+			if shard.HashKeyRange.EndingHashKey != nil {
+				shardInfo.HashKeyRange.EndingHashKey = *shard.HashKeyRange.EndingHashKey
+			}
+		}
+		if shard.SequenceNumberRange != nil {
+			if shard.SequenceNumberRange.StartingSequenceNumber != nil {
+				shardInfo.SequenceNumberRange.StartingSequenceNumber = *shard.SequenceNumberRange.StartingSequenceNumber
+			}
+			if shard.SequenceNumberRange.EndingSequenceNumber != nil {
+				shardInfo.SequenceNumberRange.EndingSequenceNumber = *shard.SequenceNumberRange.EndingSequenceNumber
+			}
+		}
+		status.Shards = append(status.Shards, shardInfo)
+	}
+
+	return &status, nil
+}
+
+func (s *StreamHandler) getTags(tags []streamResource.Tag) map[string]string {
+	streamTags := make(map[string]string)
+	for _, tag := range tags {
+		streamTags[tag.Key] = tag.Value
+	}
+	return streamTags
+}
+
+func NewStreamHandler(informer informers.StreamInformer, clientSet clientset.Clientset, region string) *StreamHandler {
+	client := kinesisStream.NewStreamClient(region)
 	return &StreamHandler{
 		StreamClientSet: clientSet,
 		StreamClient:    client,

@@ -97,3 +97,10 @@ func (s *Stream) UpdateStream(shardCount int32) (*kinesis.UpdateShardCountOutput
 		TargetShardCount: &shardCount,
 	})
 }
+
+func (s *Stream) TagStream(tags map[string]string) (*kinesis.AddTagsToStreamOutput, error) {
+	return s.Client.AddTagsToStream(context.Background(), &kinesis.AddTagsToStreamInput{
+		StreamName: &s.StreamName,
+		Tags:       tags,
+	})
+}

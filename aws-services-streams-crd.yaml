@@ -38,6 +38,7 @@ spec:
           required:
           - streamName
           - shardCount
+          - tags
           properties:
             streamName:
               description: represents kinesis stream name
@@ -45,6 +46,18 @@ spec:
             shardCount:
               description: represents shard counts for kinesis stream
               type: integer
+            tags:
+              type: array
+              items:
+                description: tags for stream
+                type: object
+                properties:
+                  tagKey:
+                    description: tag key
+                    type: string
+                  tagValue:
+                    description: tag value
+                    type: string
         status:
           description: status of kinesis stream
           type: object
