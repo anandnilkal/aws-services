@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,6 +13,7 @@ import (
 	informers "github.com/anandnilkal/aws-services/pkg/generated/informers/externalversions/awsservices/v1alpha1"
 	listers "github.com/anandnilkal/aws-services/pkg/generated/listers/awsservices/v1alpha1"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 
 	"k8s.io/klog/v2"
 )
@@ -39,8 +41,14 @@ func (s *StreamHandler) AddFunc(name, namespace string) {
 	kStream := kinesisStream.NewStream(s.StreamClient.Client, stream.Spec.StreamName, stream.ObjectMeta.Namespace, *stream.Spec.ShardCount)
 	_, err = kStream.CreateStream()
 	if err != nil {
-		klog.Errorf(err.Error())
-		return
+		currentErr := err
+		for errors.Unwrap(currentErr) != nil {
+			currentErr = errors.Unwrap(currentErr)
+		}
+		if _, ok := currentErr.(*types.ResourceInUseException); !ok {
+			klog.Errorf(err.Error())
+			return
+		}
 	}
 	tags := s.getTags(stream.Spec.Tags)
 	if len(tags) > 0 {

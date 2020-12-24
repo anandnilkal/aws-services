@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
-	"k8s.io/klog/v2"
 )
 
 type StreamClient struct {
@@ -46,15 +45,10 @@ func NewStream(client *kinesis.Client, name, namespace string, shard int32) *Str
 }
 
 func (s *Stream) CreateStream() (*kinesis.CreateStreamOutput, error) {
-	streamOut, err := s.Client.CreateStream(context.Background(), &kinesis.CreateStreamInput{
+	return s.Client.CreateStream(context.Background(), &kinesis.CreateStreamInput{
 		ShardCount: &s.ShardCount,
 		StreamName: &s.StreamName,
 	})
-	if err != nil {
-		klog.Errorf(err.Error())
-		return nil, err
-	}
-	return streamOut, nil
 }
 
 func (s *Stream) DescribeStream() (*kinesis.DescribeStreamOutput, error) {
