@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: anandnilkal/aws-services-stream
-  tag: 0.0.1-27
+  tag: 0.0.1-29
   pullPolicy: Always
 
 nameOverride: ""
