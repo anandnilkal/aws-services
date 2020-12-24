@@ -8,6 +8,139 @@ spec:
   shardCount: 1
   tags:
   - tagKey: owner
-    tagValue: anilkal
+    tagValue: anilkal-1
+  - tagKey: namespace
+    tagValue: cloud-ops1
+---
+apiVersion: awsservices.k8s.io/v1alpha1
+kind: Stream
+metadata:
+  name: anilkal-test-stream-2
+  namespace: cloud-ops1
+spec:
+  streamName: anilkal-test-stream-2
+  shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal-1
+  - tagKey: namespace
+    tagValue: cloud-ops1
+---
+apiVersion: awsservices.k8s.io/v1alpha1
+kind: Stream
+metadata:
+  name: anilkal-test-stream-3
+  namespace: cloud-ops1
+spec:
+  streamName: anilkal-test-stream-3
+  shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal-1
+  - tagKey: namespace
+    tagValue: cloud-ops1
+
+---
+apiVersion: awsservices.k8s.io/v1alpha1
+kind: Stream
+metadata:
+  name: anilkal-test-stream-4
+  namespace: cloud-ops1
+spec:
+  streamName: anilkal-test-stream-4
+  shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal-1
+  - tagKey: namespace
+    tagValue: cloud-ops1
+
+---
+apiVersion: awsservices.k8s.io/v1alpha1
+kind: Stream
+metadata:
+  name: anilkal-test-stream-5
+  namespace: cloud-ops1
+spec:
+  streamName: anilkal-test-stream-5
+  shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal-1
+  - tagKey: namespace
+    tagValue: cloud-ops1
+
+---
+apiVersion: awsservices.k8s.io/v1alpha1
+kind: Stream
+metadata:
+  name: anilkal-test-stream-6
+  namespace: cloud-ops1
+spec:
+  streamName: anilkal-test-stream-6
+  shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal-1
+  - tagKey: namespace
+    tagValue: cloud-ops1
+
+---
+apiVersion: awsservices.k8s.io/v1alpha1
+kind: Stream
+metadata:
+  name: anilkal-test-stream-7
+  namespace: cloud-ops1
+spec:
+  streamName: anilkal-test-stream-7
+  shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal-1
+  - tagKey: namespace
+    tagValue: cloud-ops1
+
+---
+apiVersion: awsservices.k8s.io/v1alpha1
+kind: Stream
+metadata:
+  name: anilkal-test-stream-8
+  namespace: cloud-ops1
+spec:
+  streamName: anilkal-test-stream-8
+  shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal-1
+  - tagKey: namespace
+    tagValue: cloud-ops1
+
+---
+apiVersion: awsservices.k8s.io/v1alpha1
+kind: Stream
+metadata:
+  name: anilkal-test-stream-9
+  namespace: cloud-ops1
+spec:
+  streamName: anilkal-test-stream-9
+  shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal-1
+  - tagKey: namespace
+    tagValue: cloud-ops1
+
+---
+apiVersion: awsservices.k8s.io/v1alpha1
+kind: Stream
+metadata:
+  name: anilkal-test-stream-10
+  namespace: cloud-ops1
+spec:
+  streamName: anilkal-test-stream-10
+  shardCount: 1
+  tags:
+  - tagKey: owner
+    tagValue: anilkal-1
   - tagKey: namespace
     tagValue: cloud-ops1

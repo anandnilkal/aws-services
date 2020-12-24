@@ -2,8 +2,8 @@ package resource
 
 import (
 	"context"
+	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	kinesisStream "github.com/anandnilkal/aws-services/cmd/kinesis"
@@ -22,6 +22,8 @@ type StreamHandler struct {
 	StreamInformer  informers.StreamInformer
 	StreamList      map[string]*kinesisStream.Stream
 	StreamLister    listers.StreamLister
+	Ticker          *time.Ticker
+	Done            chan bool
 }
 
 func (s *StreamHandler) AddFunc(name, namespace string) {
@@ -34,13 +36,11 @@ func (s *StreamHandler) AddFunc(name, namespace string) {
 		klog.Errorf(err.Error())
 		return
 	}
-	kStream := kinesisStream.NewStream(s.StreamClient.Client, stream.Spec.StreamName, *stream.Spec.ShardCount, s.StreamClient.Region)
+	kStream := kinesisStream.NewStream(s.StreamClient.Client, stream.Spec.StreamName, stream.ObjectMeta.Namespace, *stream.Spec.ShardCount)
 	_, err = kStream.CreateStream()
 	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			klog.Errorf(err.Error())
-			return
-		}
+		klog.Errorf(err.Error())
+		return
 	}
 	tags := s.getTags(stream.Spec.Tags)
 	if len(tags) > 0 {
@@ -57,11 +57,7 @@ func (s *StreamHandler) AddFunc(name, namespace string) {
 		klog.Errorf(err.Error())
 		return
 	}
-	streamStatus, err := s.getStreamStatus(streamDescription)
-	if err != nil {
-		klog.Errorf(err.Error())
-		return
-	}
+	streamStatus := s.getStreamStatus(streamDescription)
 	streamCopy.Status = *streamStatus
 
 	_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
@@ -130,11 +126,7 @@ func (s *StreamHandler) UpdateFunc(name, namespace string) {
 				return
 			}
 		}
-		streamStatus, err := s.getStreamStatus(streamDescription)
-		if err != nil {
-			klog.Errorf(err.Error())
-			return
-		}
+		streamStatus := s.getStreamStatus(streamDescription)
 		streamCopy.Status = *streamStatus
 		_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
 		if err != nil {
@@ -144,7 +136,7 @@ func (s *StreamHandler) UpdateFunc(name, namespace string) {
 	return
 }
 
-func (s *StreamHandler) getStreamStatus(description *kinesis.DescribeStreamOutput) (*streamResource.StreamStatus, error) {
+func (s *StreamHandler) getStreamStatus(description *kinesis.DescribeStreamOutput) *streamResource.StreamStatus {
 	status := streamResource.StreamStatus{
 		RetentionPeriodHours: *description.StreamDescription.RetentionPeriodHours,
 		StreamARN:            *description.StreamDescription.StreamARN,
@@ -187,7 +179,7 @@ func (s *StreamHandler) getStreamStatus(description *kinesis.DescribeStreamOutpu
 		status.Shards = append(status.Shards, shardInfo)
 	}
 
-	return &status, nil
+	return &status
 }
 
 func (s *StreamHandler) getTags(tags []streamResource.Tag) map[string]string {
@@ -198,13 +190,48 @@ func (s *StreamHandler) getTags(tags []streamResource.Tag) map[string]string {
 	return streamTags
 }
 
-func NewStreamHandler(informer informers.StreamInformer, clientSet clientset.Clientset, region string) *StreamHandler {
+func NewStreamHandler(informer informers.StreamInformer, clientSet clientset.Clientset, region string, duration int64) *StreamHandler {
 	client := kinesisStream.NewStreamClient(region)
-	return &StreamHandler{
+	ticker := time.NewTicker(time.Duration(duration * int64(time.Second)))
+	done := make(chan bool)
+	streamHandler := StreamHandler{
 		StreamClientSet: clientSet,
 		StreamClient:    client,
 		StreamList:      make(map[string]*kinesisStream.Stream),
 		StreamInformer:  informer,
 		StreamLister:    informer.Lister(),
+		Ticker:          ticker,
+		Done:            done,
+	}
+	go streamHandler.periodicStatusFetch()
+	return &streamHandler
+}
+
+func (s *StreamHandler) periodicStatusFetch() {
+	for {
+		select {
+		case <-s.Done:
+			return
+		case <-s.Ticker.C:
+			for _, stream := range s.StreamList {
+				streamDescription, err := stream.DescribeStream()
+				if err != nil {
+					klog.Errorf(err.Error())
+					continue
+				}
+				streamStatus := s.getStreamStatus(streamDescription)
+				stream, err := s.StreamLister.Streams(stream.Namespace).Get(stream.StreamName)
+				if err != nil {
+					klog.Errorf(err.Error())
+					continue
+				}
+				streamCopy := stream.DeepCopy()
+				streamCopy.Status = *streamStatus
+				_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
+				if err != nil {
+					klog.Errorf(err.Error())
+				}
+			}
+		}
 	}
 }

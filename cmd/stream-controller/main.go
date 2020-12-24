@@ -28,6 +28,7 @@ var (
 	masterURL  string
 	kubeconfig string
 	region     string
+	duration   int64
 )
 
 func main() {
@@ -37,7 +38,7 @@ func main() {
 	if err != nil {
 		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
-	controllerImpl.CreateController(cfg, region)
+	controllerImpl.CreateController(cfg, region, duration)
 
 }
 
@@ -45,4 +46,5 @@ func init() {
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
 	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	flag.StringVar(&region, "region", "", "aws region information")
+	flag.Int64Var(&duration, "duration", 300, "periodic duration for fetching stream status")
 }
