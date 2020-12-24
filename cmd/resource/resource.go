@@ -45,9 +45,14 @@ func (s *StreamHandler) AddFunc(name, namespace string) {
 		for errors.Unwrap(currentErr) != nil {
 			currentErr = errors.Unwrap(currentErr)
 		}
-		if _, ok := currentErr.(*types.ResourceInUseException); !ok {
-			klog.Errorf(err.Error())
-			return
+		if _, ok := currentErr.(*types.LimitExceededException); ok {
+			time.Sleep(time.Second * 1)
+			kStream.CreateStream()
+		} else {
+			if _, ok := currentErr.(*types.ResourceInUseException); !ok {
+				klog.Errorf(err.Error())
+				return
+			}
 		}
 	}
 	tags := s.getTags(stream.Spec.Tags)
