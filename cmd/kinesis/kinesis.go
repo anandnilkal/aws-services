@@ -20,6 +20,7 @@ type Stream struct {
 	StreamName string
 	ShardCount int32
 	StreamARN  string
+	Namespace  string
 }
 
 func NewStreamClient(region string) *StreamClient {
@@ -31,14 +32,16 @@ func NewStreamClient(region string) *StreamClient {
 	}
 	return &StreamClient{
 		Client: kinesis.NewFromConfig(cfg),
+		Region: region,
 	}
 }
 
-func NewStream(client *kinesis.Client, name string, shard int32, region string) *Stream {
+func NewStream(client *kinesis.Client, name, namespace string, shard int32) *Stream {
 	return &Stream{
 		Client:     client,
 		StreamName: name,
 		ShardCount: shard,
+		Namespace:  namespace,
 	}
 }
 
