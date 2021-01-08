@@ -62,6 +62,15 @@ spec:
           description: status of kinesis stream
           type: object
           properties:
+            retryCount:
+              description: stream creation attempt
+              type: integer
+            error:
+              description: indicates error in creating stream
+              type: string
+            status:
+              description: status about kinesis stream creation
+              type: string
             retentionPeriodHours:
               description: holds retention period in hours in stream
               type: integer

@@ -68,6 +68,9 @@ type Shard struct {
 
 // StreamStatus is the status for a Stream resource
 type StreamStatus struct {
+	RetryCount           int32   `json:"retryCount"`
+	Error                string  `json:"error"`
+	Status               string  `json:"status"`
 	RetentionPeriodHours int32   `json:"retentionPeriodHours"`
 	Shards               []Shard `json:"shards"`
 	StreamARN            string  `json:"streamARN"`

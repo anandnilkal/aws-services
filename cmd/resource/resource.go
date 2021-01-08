@@ -13,7 +13,6 @@ import (
 	informers "github.com/anandnilkal/aws-services/pkg/generated/informers/externalversions/awsservices/v1alpha1"
 	listers "github.com/anandnilkal/aws-services/pkg/generated/listers/awsservices/v1alpha1"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
-	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 
 	"k8s.io/klog/v2"
 )
@@ -45,15 +44,32 @@ func (s *StreamHandler) AddFunc(name, namespace string) {
 		for errors.Unwrap(currentErr) != nil {
 			currentErr = errors.Unwrap(currentErr)
 		}
-		if _, ok := currentErr.(*types.LimitExceededException); ok {
-			time.Sleep(time.Second * 1)
-			kStream.CreateStream()
-		} else {
-			if _, ok := currentErr.(*types.ResourceInUseException); !ok {
-				klog.Errorf(err.Error())
-				return
-			}
+		// if _, ok := currentErr.(*types.LimitExceededException); ok {
+		// 	time.Sleep(time.Second * 1)
+		// 	kStream.CreateStream()
+		// } else {
+		// 	if _, ok := currentErr.(*types.ResourceInUseException); !ok {
+		klog.Errorf(err.Error())
+		streamCopy := stream.DeepCopy()
+		streamCopy.Status = streamResource.StreamStatus{
+			RetryCount:           0,
+			Error:                err.Error(),
+			Status:               "FAILED",
+			RetentionPeriodHours: 0,
+			Shards:               []streamResource.Shard{},
+			StreamARN:            "",
+			StreamName:           name,
+			StreamStatus:         "",
+			EncryptionType:       "",
+			KeyID:                "",
 		}
+		_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf(err.Error())
+		}
+		return
+		// }
+		// }
 	}
 	tags := s.getTags(stream.Spec.Tags)
 	if len(tags) > 0 {
@@ -70,7 +86,7 @@ func (s *StreamHandler) AddFunc(name, namespace string) {
 		klog.Errorf(err.Error())
 		return
 	}
-	streamStatus := s.getStreamStatus(streamDescription)
+	streamStatus := s.getStreamStatus(streamDescription, "SUCCESS", "", 0)
 	streamCopy.Status = *streamStatus
 
 	_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
@@ -108,14 +124,43 @@ func (s *StreamHandler) DeleteFunc(name, namespace string) {
 
 func (s *StreamHandler) UpdateFunc(name, namespace string) {
 	klog.V(4).Infof("Updated Stream: %s, Namespace: %s", name, namespace)
-	var existingStream *kinesisStream.Stream
-	var ok bool
-	if existingStream, ok = s.StreamList[name]; !ok {
-		return
-	}
 	stream, err := s.StreamLister.Streams(namespace).Get(name)
 	if err != nil {
 		klog.Errorf(err.Error())
+		return
+	}
+	if stream.Status.Status == "FAILED" {
+		if stream.Status.RetryCount < 5 {
+			kStream := kinesisStream.NewStream(s.StreamClient.Client, stream.Spec.StreamName, stream.ObjectMeta.Namespace, *stream.Spec.ShardCount)
+			_, err = kStream.CreateStream()
+			if err != nil {
+				streamCopy := stream.DeepCopy()
+				streamCopy.Status = streamResource.StreamStatus{
+					RetryCount:           stream.Status.RetryCount + 1,
+					Error:                err.Error(),
+					Status:               "FAILED",
+					RetentionPeriodHours: 0,
+					Shards:               []streamResource.Shard{},
+					StreamARN:            "",
+					StreamName:           name,
+					StreamStatus:         "",
+					EncryptionType:       "",
+					KeyID:                "",
+				}
+				_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
+				if err != nil {
+					klog.Errorf(err.Error())
+				}
+				return
+			}
+			s.StreamList[name] = kStream
+		} else {
+			return
+		}
+	}
+	var existingStream *kinesisStream.Stream
+	var ok bool
+	if existingStream, ok = s.StreamList[name]; !ok {
 		return
 	}
 	if *stream.Spec.ShardCount != existingStream.ShardCount {
@@ -125,32 +170,35 @@ func (s *StreamHandler) UpdateFunc(name, namespace string) {
 			klog.Errorf(err.Error())
 			return
 		}
-		streamCopy := stream.DeepCopy()
-		streamDescription, err := existingStream.DescribeStream()
+	}
+	streamCopy := stream.DeepCopy()
+	streamDescription, err := existingStream.DescribeStream()
+	if err != nil {
+		klog.Errorf(err.Error())
+		return
+	}
+	tags := s.getTags(stream.Spec.Tags)
+	if len(tags) > 0 {
+		_, err = existingStream.TagStream(tags)
 		if err != nil {
 			klog.Errorf(err.Error())
 			return
 		}
-		tags := s.getTags(stream.Spec.Tags)
-		if len(tags) > 0 {
-			_, err = existingStream.TagStream(tags)
-			if err != nil {
-				klog.Errorf(err.Error())
-				return
-			}
-		}
-		streamStatus := s.getStreamStatus(streamDescription)
-		streamCopy.Status = *streamStatus
-		_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Errorf(err.Error())
-		}
+	}
+	streamStatus := s.getStreamStatus(streamDescription, "SUCCESS", "", stream.Status.RetryCount)
+	streamCopy.Status = *streamStatus
+	_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf(err.Error())
 	}
 	return
 }
 
-func (s *StreamHandler) getStreamStatus(description *kinesis.DescribeStreamOutput) *streamResource.StreamStatus {
+func (s *StreamHandler) getStreamStatus(description *kinesis.DescribeStreamOutput, streamStatus, err string, retryCount int32) *streamResource.StreamStatus {
 	status := streamResource.StreamStatus{
+		Status:               streamStatus,
+		Error:                err,
+		RetryCount:           retryCount,
 		RetentionPeriodHours: *description.StreamDescription.RetentionPeriodHours,
 		StreamARN:            *description.StreamDescription.StreamARN,
 		StreamStatus:         string(description.StreamDescription.StreamStatus),
@@ -232,12 +280,12 @@ func (s *StreamHandler) periodicStatusFetch() {
 					klog.Errorf(err.Error())
 					continue
 				}
-				streamStatus := s.getStreamStatus(streamDescription)
 				stream, err := s.StreamLister.Streams(stream.Namespace).Get(stream.StreamName)
 				if err != nil {
 					klog.Errorf(err.Error())
 					continue
 				}
+				streamStatus := s.getStreamStatus(streamDescription, "SUCCESS", "", stream.Status.RetryCount)
 				streamCopy := stream.DeepCopy()
 				streamCopy.Status = *streamStatus
 				_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
