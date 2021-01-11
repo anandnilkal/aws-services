@@ -13,6 +13,7 @@ import (
 	informers "github.com/anandnilkal/aws-services/pkg/generated/informers/externalversions/awsservices/v1alpha1"
 	listers "github.com/anandnilkal/aws-services/pkg/generated/listers/awsservices/v1alpha1"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 
 	"k8s.io/klog/v2"
 )
@@ -48,27 +49,27 @@ func (s *StreamHandler) AddFunc(name, namespace string) {
 		// 	time.Sleep(time.Second * 1)
 		// 	kStream.CreateStream()
 		// } else {
-		// 	if _, ok := currentErr.(*types.ResourceInUseException); !ok {
-		klog.Errorf(err.Error())
-		streamCopy := stream.DeepCopy()
-		streamCopy.Status = streamResource.StreamStatus{
-			RetryCount:           0,
-			Error:                err.Error(),
-			Status:               "FAILED",
-			RetentionPeriodHours: 0,
-			Shards:               []streamResource.Shard{},
-			StreamARN:            "",
-			StreamName:           name,
-			StreamStatus:         "",
-			EncryptionType:       "",
-			KeyID:                "",
-		}
-		_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
-		if err != nil {
+		if _, ok := currentErr.(*types.ResourceInUseException); !ok {
 			klog.Errorf(err.Error())
+			streamCopy := stream.DeepCopy()
+			streamCopy.Status = streamResource.StreamStatus{
+				RetryCount:           0,
+				Error:                err.Error(),
+				Status:               "FAILED",
+				RetentionPeriodHours: 0,
+				Shards:               []streamResource.Shard{},
+				StreamARN:            "",
+				StreamName:           name,
+				StreamStatus:         "",
+				EncryptionType:       "",
+				KeyID:                "",
+			}
+			_, err = s.StreamClientSet.AwsservicesV1alpha1().Streams(stream.Namespace).UpdateStatus(context.TODO(), streamCopy, metav1.UpdateOptions{})
+			if err != nil {
+				klog.Errorf(err.Error())
+			}
+			return
 		}
-		return
-		// }
 		// }
 	}
 	tags := s.getTags(stream.Spec.Tags)
